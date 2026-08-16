@@ -1,0 +1,41 @@
+# Build artifacts / caches
+**/__pycache__/
+**/*.pyc
+.git/
+
+# Docs, examples, and tooling not relevant to inference
+ultralytics-distill/docs/
+ultralytics-distill/examples/
+ultralytics-distill/tests/
+ultralytics-distill/docker/
+ultralytics-yolo11/docs/
+ultralytics-yolo11/examples/
+ultralytics-yolo11/docker/
+
+# Large/optional extra modules (CUDA extensions, alt backbones) not used by SBP-YOLO inference
+ultralytics-distill/ultralytics/nn/extra_modules/selective_scan/
+ultralytics-distill/ultralytics/nn/extra_modules/DCNv4_op/
+ultralytics-distill/ultralytics/nn/extra_modules/mamba/
+ultralytics-distill/ultralytics/nn/extra_modules/ops_dcnv3/
+ultralytics-distill/ultralytics/nn/extra_modules/rational_kat_cu/
+ultralytics-distill/ultralytics/nn/extra_modules/cutlass/
+ultralytics-distill/ultralytics/nn/backbone/TransNeXt/
+
+# Old experiment run folders (many, low signal)
+ultralytics-yolo11/zzz/
+
+# Notebooks (large, mostly binary/output noise)
+**/*.ipynb
+
+# Virtual environments
+.venv/
+venv/
+
+# Model weights and large binaries (keep tracked but skip indexing content)
+**/*.pt
+**/*.wts
+**/*.onnx
+**/*.engine
+
+# Generated outputs from running detection
+runs/detect/

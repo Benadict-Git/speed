@@ -67,7 +67,6 @@ __all__ = ['DyHeadBlock', 'DyHeadBlockWithDCNV3', 'Fusion', 'C3k2_Faster', 'C3k2
            'C3_Ghost','C3_Ghost_CAA','C2f_Ghost',
            'DeformableConvMaxPool', 
            'Down_WT','ShuffleNetV2',
-           'EnhancedDownWT',
            'SPConv_3x3',
            'CSP_PTB', 'GLSA', 'CSPOmniKernel', 'WTConv2d', 'C3k2_WTConv',
            'RCM', 'PyramidContextExtraction', 'DynamicInterpolationFusion', 'FuseBlockMulti', 'FeaturePyramidSharedConv', 'C3k2_FMB', 'LDConv', 'C3k2_gConv', 'C3k2_WDBB', 'C3k2_DeepDBB',
