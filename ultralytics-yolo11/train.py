@@ -18,12 +18,12 @@ def main(opt):
     results = model.train(
                 cache = False,
                 data =  data,
-                imgsz=640,  # 训练图片大小，默认640
-                epochs=300,  # 训练轮次，默认100
-                batch=16,  # 训练批次，默认16 32 64
+                imgsz=640,  # training image size, default 640
+                epochs=300,  # training epochs, default 100
+                batch=16,  # training batch size, default options 16, 32, 64
                 project='zzz',
-                name='exp',  # 用于保存训练文件夹名，默认exp，依次累加
-                #device='0',  # 要运行的设备 device =0 是GPU显卡训练，device = cpu
+                name='exp',  # folder name for saving training runs, default 'exp', increments sequentially
+                #device='0',  # device to run on: '0' for GPU training, 'cpu' for CPU
                 patience=30,
                 seed=0,
                 lr0=0.001,
@@ -31,8 +31,8 @@ def main(opt):
                 close_mosaic=0,
                 amp=True,
                 # amp=False,
-                workers=8, #  需要设置为8 
-                simplify=True # 默认为true
+                workers=8, # needs to be set to 8
+                simplify=True # default is true
             )
 
 def parse_opt(known=False):

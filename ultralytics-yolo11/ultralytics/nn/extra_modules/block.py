@@ -980,13 +980,12 @@ class C3k2_DeepDBB(C3k2):
 ######################################## C2f-DDB end ########################################
 
 ######################################## SlimNeck begin ########################################
-# GSConvE official version released
+# GSConv enhancement for multi-scale representation
 class GSConvEE(nn.Module):
-    '''
-    GSConv enhancement for representation learning: generate various receptive-fields and
-    texture-features only in one Conv module
-    https://github.com/AlanLi1997/rethinking-fpn
-    '''
+    """
+    GSConv module for multi-scale feature extraction across varied receptive fields
+    in a single convolution block.
+    """
     def __init__(self, c1, c2, k=1, s=1, p=None, g=1, d=1, act=True):
         super().__init__()
         c_ = c2 // 4
@@ -1003,17 +1002,11 @@ class GSConvEE(nn.Module):
 
         y = torch.cat((x1, x2, x3, x4), dim=1)
         return y
-        # shuffle
-        # y = y.reshape(y.shape[0], 2, y.shape[1] // 2, y.shape[2], y.shape[3])
-        # y = y.permute(0, 2, 1, 3, 4)
-        # return y.reshape(y.shape[0], -1, y.shape[3], y.shape[4])
 
 class GSConvE2(nn.Module):
-    '''
-    GSConv enhancement for representation learning: generate various receptive-fields and
-    texture-features only in one Conv module
-    https://github.com/AlanLi1997/rethinking-fpn
-    '''
+    """
+    GSConv module with dilated multi-kernel convolutions for extended receptive field learning.
+    """
     def __init__(self, c1, c2, k=1, s=1, p=None, g=1, d=1, act=True):
         super().__init__()
         c_ = c2 // 4
@@ -1029,18 +1022,16 @@ class GSConvE2(nn.Module):
         x4 = self.cv4(x1)
 
         y = torch.cat((x1, x2, x3, x4), dim=1)
-        # shuffle
+        # channel shuffle
         y = y.reshape(y.shape[0], 2, y.shape[1] // 2, y.shape[2], y.shape[3])
         y = y.permute(0, 2, 1, 3, 4)
         return y.reshape(y.shape[0], -1, y.shape[3], y.shape[4])
 
 
 class GSConvE(nn.Module):
-    '''
-    GSConv enhancement for representation learning: generate various receptive-fields and
-    texture-features only in one Conv module
-    # GSConvE1 https://github.com/AlanLi1997/rethinking-fpn
-    '''
+    """
+    Lightweight GSConv module with depthwise separable convolution and GELU activation.
+    """
     def __init__(self, c1, c2, k=1, s=1, p=None, g=1, d=1, act=True):
         super().__init__()
         c_ = c2 // 2
@@ -1055,13 +1046,15 @@ class GSConvE(nn.Module):
         x1 = self.cv1(x)
         x2 = self.cv2(x1)
         y = torch.cat((x1, x2), dim=1)
-        # shuffle
+        # channel shuffle
         y = y.reshape(y.shape[0], 2, y.shape[1] // 2, y.shape[2], y.shape[3])
         y = y.permute(0, 2, 1, 3, 4)
         return y.reshape(y.shape[0], -1, y.shape[3], y.shape[4])
 
 class GSConv(nn.Module):
-    # GSConv https://github.com/AlanLi1997/slim-neck-by-gsconv
+    """
+    GSConv: Group shuffle convolution for lightweight, efficient feature aggregation.
+    """
     def __init__(self, c1, c2, k=1, s=1, p=None, g=1, d=1, act=True):
         super().__init__()
         c_ = c2 // 2
@@ -1071,11 +1064,8 @@ class GSConv(nn.Module):
     def forward(self, x):
         x1 = self.cv1(x)
         x2 = torch.cat((x1, self.cv2(x1)), 1)
-        # y = x2.reshape(x2.shape[0], 2, x2.shape[1] // 2, x2.shape[2], x2.shape[3])
-        # y = y.permute(0, 2, 1, 3, 4)
-        # return y.reshape(y.shape[0], -1, y.shape[3], y.shape[4])
         
-        # shuffle
+        # channel shuffle
         b, n, h, w = x2.size()
         b_n = b * n // 2
         y = x2.reshape(b_n, 2, h * w)
@@ -1084,7 +1074,9 @@ class GSConv(nn.Module):
         return torch.cat((y[0], y[1]), 1)
 
 class GSConvns(GSConv):
-    # GSConv with a normative-shuffle https://github.com/AlanLi1997/slim-neck-by-gsconv
+    """
+    GSConv variant with normative-shuffle optimized for TensorRT acceleration.
+    """
     def __init__(self, c1, c2, k=1, s=1, p=None, g=1, act=True):
         super().__init__(c1, c2, k, s, p, g, act=True)
         c_ = c2 // 2
@@ -1093,15 +1085,16 @@ class GSConvns(GSConv):
     def forward(self, x):
         x1 = self.cv1(x)
         x2 = torch.cat((x1, self.cv2(x1)), 1)
-        # normative-shuffle, TRT supported
+        # normative shuffle
         return nn.ReLU()(self.shuf(x2))
 
 class GSBottleneck(nn.Module):
-    # GS Bottleneck https://github.com/AlanLi1997/slim-neck-by-gsconv
+    """
+    GSBottleneck: Bottleneck module using GSConv for reduced computational complexity.
+    """
     def __init__(self, c1, c2, k=3, s=1, e=0.5):
         super().__init__()
         c_ = int(c2*e)
-        # for lighting
         self.conv_lighting = nn.Sequential(
             GSConv(c1, c_, 1, 1),
             GSConv(c_, c2, 3, 1, act=False))
@@ -1111,23 +1104,28 @@ class GSBottleneck(nn.Module):
         return self.conv_lighting(x) + self.shortcut(x)
 
 class GSBottleneckns(GSBottleneck):
-    # GS Bottleneck https://github.com/AlanLi1997/slim-neck-by-gsconv
+    """
+    GSBottleneck variant with normative shuffle.
+    """
     def __init__(self, c1, c2, k=3, s=1, e=0.5):
         super().__init__(c1, c2, k, s, e)
         c_ = int(c2*e)
-        # for lighting
         self.conv_lighting = nn.Sequential(
             GSConvns(c1, c_, 1, 1),
             GSConvns(c_, c2, 3, 1, act=False))
         
 class GSBottleneckC(GSBottleneck):
-    # cheap GS Bottleneck https://github.com/AlanLi1997/slim-neck-by-gsconv
+    """
+    Lightweight GS Bottleneck using depthwise convolution shortcuts.
+    """
     def __init__(self, c1, c2, k=3, s=1):
         super().__init__(c1, c2, k, s)
         self.shortcut = DWConv(c1, c2, k, s, act=False)
 
 class VoVGSCSP(nn.Module):
-    # VoVGSCSP module with GSBottleneck
+    """
+    VoVGSCSP: Cross Stage Partial module integrating GSBottleneck.
+    """
     def __init__(self, c1, c2, n=1, shortcut=True, g=1, e=0.5):
         super().__init__()
         c_ = int(c2 * e)  # hidden channels
@@ -1144,7 +1142,9 @@ class VoVGSCSP(nn.Module):
 
 
 class VoVGSCSPC(VoVGSCSP):
-    # cheap VoVGSCSP module with GSBottleneck
+    """
+    VoVGSCSPC: Efficient VoVGSCSP module using GSBottleneckC for low-latency neck.
+    """
     def __init__(self, c1, c2, n=1, shortcut=True, g=1, e=0.5):
         super().__init__(c1, c2)
         c_ = int(c2 * 0.5)  # hidden channels
@@ -1152,25 +1152,28 @@ class VoVGSCSPC(VoVGSCSP):
 
 
 class VoVGSCSPns(VoVGSCSP):
+    """
+    VoVGSCSP variant with normative shuffle.
+    """
     def __init__(self, c1, c2, n=1, shortcut=True, g=1, e=0.5):
         super().__init__(c1, c2, n, shortcut, g, e)
         c_ = int(c2 * e)  # hidden channels
         self.gsb = nn.Sequential(*(GSBottleneckns(c_, c_, e=1.0) for _ in range(n)))
 
 
-
 class GhostConv(nn.Module):
-    """Ghost Convolution https://github.com/huawei-noah/ghostnet."""
+    """
+    GhostConv: Ghost Convolution using primary and cheap linear operations.
+    """
 
     def __init__(self, c1, c2, k=1, s=1, g=1, act=True):
-        """Initializes Ghost Convolution module with primary and cheap operations for efficient feature learning."""
         super().__init__()
         c_ = c2 // 2  # hidden channels
         self.cv1 = Conv(c1, c_, k, s, None, g, act=act)
         self.cv2 = Conv(c_, c_, 5, 1, None, c_, act=act)
 
     def forward(self, x):
-        """Forward propagation through a Ghost Bottleneck layer with skip connection."""
+        """Forward propagation through primary conv and cheap linear transformation."""
         y = self.cv1(x)
         return torch.cat((y, self.cv2(y)), 1)
 

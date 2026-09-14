@@ -973,7 +973,9 @@ class C3k2_DeepDBB(C3k2):
 ######################################## SlimNeck begin ########################################
 
 class GSConv(nn.Module):
-    # GSConv https://github.com/AlanLi1997/slim-neck-by-gsconv
+    """
+    GSConv: Group shuffle convolution for lightweight, efficient feature aggregation.
+    """
     def __init__(self, c1, c2, k=1, s=1, p=None, g=1, d=1, act=True):
         super().__init__()
         c_ = c2 // 2
@@ -983,10 +985,6 @@ class GSConv(nn.Module):
     def forward(self, x):
         x1 = self.cv1(x)
         x2 = torch.cat((x1, self.cv2(x1)), 1)
-        # shuffle
-        # y = x2.reshape(x2.shape[0], 2, x2.shape[1] // 2, x2.shape[2], x2.shape[3])
-        # y = y.permute(0, 2, 1, 3, 4)
-        # return y.reshape(y.shape[0], -1, y.shape[3], y.shape[4])
 
         b, n, h, w = x2.size()
         b_n = b * n // 2
@@ -997,7 +995,9 @@ class GSConv(nn.Module):
         return torch.cat((y[0], y[1]), 1)
 
 class GSConvns(GSConv):
-    # GSConv with a normative-shuffle https://github.com/AlanLi1997/slim-neck-by-gsconv
+    """
+    GSConv variant with normative-shuffle optimized for TensorRT acceleration.
+    """
     def __init__(self, c1, c2, k=1, s=1, p=None, g=1, act=True):
         super().__init__(c1, c2, k, s, p, g, act=True)
         c_ = c2 // 2
@@ -1006,15 +1006,16 @@ class GSConvns(GSConv):
     def forward(self, x):
         x1 = self.cv1(x)
         x2 = torch.cat((x1, self.cv2(x1)), 1)
-        # normative-shuffle, TRT supported
+        # normative shuffle
         return nn.ReLU()(self.shuf(x2))
 
 class GSBottleneck(nn.Module):
-    # GS Bottleneck https://github.com/AlanLi1997/slim-neck-by-gsconv
+    """
+    GSBottleneck: Bottleneck module using GSConv for reduced computational complexity.
+    """
     def __init__(self, c1, c2, k=3, s=1, e=0.5):
         super().__init__()
         c_ = int(c2*e)
-        # for lighting
         self.conv_lighting = nn.Sequential(
             GSConv(c1, c_, 1, 1),
             GSConv(c_, c2, 3, 1, act=False))
@@ -1024,30 +1025,34 @@ class GSBottleneck(nn.Module):
         return self.conv_lighting(x) + self.shortcut(x)
 
 class GSBottleneckns(GSBottleneck):
-    # GS Bottleneck https://github.com/AlanLi1997/slim-neck-by-gsconv
+    """
+    GSBottleneck variant with normative shuffle.
+    """
     def __init__(self, c1, c2, k=3, s=1, e=0.5):
         super().__init__(c1, c2, k, s, e)
         c_ = int(c2*e)
-        # for lighting
         self.conv_lighting = nn.Sequential(
             GSConvns(c1, c_, 1, 1),
             GSConvns(c_, c2, 3, 1, act=False))
         
 class GSBottleneckC(GSBottleneck):
-    # cheap GS Bottleneck https://github.com/AlanLi1997/slim-neck-by-gsconv
+    """
+    Lightweight GS Bottleneck using depthwise convolution shortcuts.
+    """
     def __init__(self, c1, c2, k=3, s=1):
         super().__init__(c1, c2, k, s)
         self.shortcut = DWConv(c1, c2, k, s, act=False)
 
 class VoVGSCSP(nn.Module):
-    # VoVGSCSP module with GSBottleneck
+    """
+    VoVGSCSP: Cross Stage Partial module integrating GSBottleneck.
+    """
     def __init__(self, c1, c2, n=1, shortcut=True, g=1, e=0.5):
         super().__init__()
         c_ = int(c2 * e)  # hidden channels
         self.cv1 = Conv(c1, c_, 1, 1)
         self.cv2 = Conv(c1, c_, 1, 1)
         self.gsb = nn.Sequential(*(GSBottleneck(c_, c_, e=1.0) for _ in range(n)))
-        # self.res = Conv(c_, c_, 3, 1, act=False)
         self.cv3 = Conv(2 * c_, c2, 1)
 
     def forward(self, x):
@@ -1056,13 +1061,18 @@ class VoVGSCSP(nn.Module):
         return self.cv3(torch.cat((y, x1), dim=1))
 
 class VoVGSCSPns(VoVGSCSP):
+    """
+    VoVGSCSP variant with normative shuffle.
+    """
     def __init__(self, c1, c2, n=1, shortcut=True, g=1, e=0.5):
         super().__init__(c1, c2, n, shortcut, g, e)
         c_ = int(c2 * e)  # hidden channels
         self.gsb = nn.Sequential(*(GSBottleneckns(c_, c_, e=1.0) for _ in range(n)))
 
 class VoVGSCSPC(VoVGSCSP):
-    # cheap VoVGSCSP module with GSBottleneck
+    """
+    VoVGSCSPC: Efficient VoVGSCSP module using GSBottleneckC for low-latency neck.
+    """
     def __init__(self, c1, c2, n=1, shortcut=True, g=1, e=0.5):
         super().__init__(c1, c2)
         c_ = int(c2 * 0.5)  # hidden channels
